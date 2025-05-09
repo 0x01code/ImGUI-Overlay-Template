@@ -18,6 +18,8 @@ public:
 	void RenderHack();
 
 	void DrawVerticalBar(float x, float y, float width, float height, int value, int max_value, ImU32 valueColor = IM_COL32(0, 255, 0, 255));
+	float GetDistance3D(Vector3 src, Vector3 dst);
+	Vector2 CalcAngle(Vector3 src, Vector3 dst);
 private:
 	int current_tab = 0;
 
@@ -26,6 +28,8 @@ private:
 	bool esp_health_bar = true;
 
 	// Options 2
+	bool aimbot = true;
+	float fov = 90.0f;
 
 
 	// Options 3

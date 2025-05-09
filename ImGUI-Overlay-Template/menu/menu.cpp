@@ -39,6 +39,8 @@ void Menu::RenderMenu()
 		else if (current_tab == 1)
 		{
 			ImGui::Text("Aimbot Menu");
+			ImGui::Checkbox("Aimbot", &aimbot);
+			ImGui::SliderFloat("Wrap width", &fov, 0, 100, "%.2f");
 		}
 		else if (current_tab == 2)
 		{
@@ -63,6 +65,9 @@ void Menu::RenderHack()
 	uintptr_t entity_list = mem.moduleBaseAddress[L"server.dll"] + Offset::EntityList;
 	uintptr_t local_player = mem.Read<uintptr_t>(entity_list);
 	int num_of_player = 32;
+
+	float closestDitance = 1000000;
+	int closesDistanceIndex = -1;
 
 	for (unsigned int i = 1; i < num_of_player; i++)
 	{
@@ -112,7 +117,52 @@ void Menu::RenderHack()
 				DrawVerticalBar(top.x + w, top.y, barWidth, h, health, health_max);
 			}
 		}
+
+		Vector2 target;
+		if (!WorldToScreen(pos_head, target, view_matrix, Overlay::screen.width, Overlay::screen.height))
+		{
+			continue;
+		}
+
+		float current_distance = sqrt(pow(((float)Overlay::screen.width / 2) - target.x, 2) + pow(((float)Overlay::screen.height / 2) - target.y, 2));
+
+		if (current_distance < closestDitance) {
+			closestDitance = current_distance;
+			closesDistanceIndex = i;
+		}
 	}
+
+	if (aimbot)
+	{
+		ImGui::GetBackgroundDrawList()->AddCircle({ ((float)Overlay::screen.width) / 2, ((float)Overlay::screen.height) / 2 }, fov, ImColor(255, 0, 0));
+
+		if (closestDitance < fov && GetAsyncKeyState(VK_LCONTROL) & 0x8000)
+		{
+			uintptr_t player = mem.Read<uintptr_t>(entity_list + Offset::EntityListNext * closesDistanceIndex);
+
+			int health = mem.Read<int>(player + Offset::Health);
+
+			Vector3 src = {
+				mem.Read<float>(local_player + Offset::PositionHeadX),
+				mem.Read<float>(local_player + Offset::PositionHeadY),
+				mem.Read<float>(local_player + Offset::PositionHeadZ)
+			};
+
+			Vector3 dst = {
+				mem.Read<float>(player + Offset::PositionHeadX),
+				mem.Read<float>(player + Offset::PositionHeadY),
+				mem.Read<float>(player + Offset::PositionHeadZ)
+			};
+
+			Vector2 angle = CalcAngle(src, dst);
+			mem.Write(mem.moduleBaseAddress[L"engine.dll"] + 0x53E4E4, angle.x + 1); // pitch ^!
+
+			// target lock
+			mem.Write(mem.moduleBaseAddress[L"engine.dll"] + 0x53E4E8, angle.y); // yaw <>
+		}
+	}
+
+
 
 	if (debug)
 	{
@@ -147,4 +197,41 @@ void Menu::DrawVerticalBar(float x, float y, float width, float height, int valu
 
 	// Draw border
 	ImGui::GetBackgroundDrawList()->AddRect(p_min, p_max, borderColor);
+}
+
+float Menu::GetDistance3D(Vector3 src, Vector3 dst)
+{
+	Vector3 deltaVec = {
+		dst.x - src.x,
+		dst.y - src.y,
+		dst.z - src.z,
+	};
+
+	return sqrt(
+		deltaVec.x * deltaVec.x + deltaVec.y * deltaVec.y
+	);
+}
+
+Vector2 Menu::CalcAngle(Vector3 src, Vector3 dst)
+{
+	Vector2 rotate;
+
+	Vector3 deltaVec = {
+		dst.x - src.x,
+		dst.y - src.y,
+		dst.z - src.z,
+	};
+	float distance = GetDistance3D(src, dst);
+
+	float pitch = -atan2(deltaVec.z, distance) * (180 / 3.14159);
+	float yaw = atan2(deltaVec.y, deltaVec.x) * (180 / 3.14159);
+
+	if (pitch >= -90 && pitch <= 90)
+	{
+		rotate.x = pitch;
+
+		rotate.y = yaw;
+	}
+
+	return rotate;
 }
