@@ -1,5 +1,5 @@
 # ImGUI Overlay Template
-🎯 A lightweight External Overlay template using Dear ImGui and DirectX11 for Windows (x86/x64). Ideal for game overlays, data visualization tools, or custom UI layers running independently from the target application.
+🎯 A lightweight External Overlay template using [Dear ImGui](https://github.com/ocornut/imgui) and DirectX11 for Windows (x86/x64). Ideal for game overlays, data visualization tools, or custom UI layers running independently from the target application.
 
 # 🔧 Features
 - ✅ External transparent overlay window
