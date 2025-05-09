@@ -1,6 +1,13 @@
 ﻿#include "overlay.h"
-#include "../setting.h"
+#include "../menu/setting.h"
 #include <dwmapi.h>
+#include "../menu/menu.h"
+
+Menu* menu = nullptr;
+
+UINT Overlay::g_ResizeWidth = 0;
+UINT Overlay::g_ResizeHeight = 0;
+Screen Overlay::screen = { 0, 0, 0, 0, 0, 0 };
 
 bool Overlay::Initialize(HINSTANCE hInstance)
 {
@@ -20,7 +27,9 @@ bool Overlay::Initialize(HINSTANCE hInstance)
 
 	::RegisterClassExW(&wc);
 
-	Screen screen = FindWindowLocation(WindowName);
+	screen = FindWindowLocation(WindowName);
+
+	menu = new Menu();
 
 	hWnd = CreateWindowEx(
 		WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED,
@@ -96,7 +105,9 @@ void Overlay::Render()
 		::TranslateMessage(&msg);
 		::DispatchMessage(&msg);
 
-		Screen screen = FindWindowLocation(WindowName);
+		screen = FindWindowLocation(WindowName);
+		screen.top = screen.top + PADDING_TOP_WINDOW;
+
 		MoveWindow(hWnd, screen.left, screen.top, screen.width, screen.height, true);
 
 		if (msg.message == WM_QUIT)
@@ -125,13 +136,13 @@ void Overlay::Render()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	if (GetAsyncKeyState(VK_INSERT) & 1)
+	if (GetAsyncKeyState(OPEN_MENU_KEY) & 1)
 	{
-		show_menu = !show_menu;
+		menu->show_menu = !menu->show_menu;
 	}
 
 	long style = GetWindowLong(hWnd, GWL_EXSTYLE);
-	if (show_menu)
+	if (menu->show_menu)
 	{
 		style &= ~WS_EX_LAYERED;
 		SetWindowLong(hWnd, GWL_EXSTYLE, style);
@@ -142,8 +153,10 @@ void Overlay::Render()
 		SetWindowLong(hWnd, GWL_EXSTYLE, style);
 	}
 
-	if (show_menu)
-		ImGui::ShowDemoWindow(&show_menu);
+	if (menu->show_menu)
+		menu->RenderMenu();
+
+	menu->RenderHack();
 
 	// Rendering
 	ImGui::Render();
@@ -160,6 +173,15 @@ void Overlay::Render()
 
 void Overlay::Shutdown()
 {
+	Menu* menu = new Menu();
+
+	// Free the allocated memory for the menu object
+	if (menu)
+	{
+		delete menu;
+		menu = nullptr;
+	}
+
 	// Cleanup
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
@@ -175,10 +197,10 @@ bool Overlay::IsRunning()
 	return running;
 }
 
-Screen Overlay::FindWindowLocation(LPCSTR windowName)
+Screen Overlay::FindWindowLocation(LPCWSTR windowName)
 {
 	int width, height;
-	HWND targetWindow = FindWindowA(0, windowName);
+	HWND targetWindow = FindWindowW(0, windowName);
 	if (targetWindow)
 	{
 		RECT rect;
@@ -252,9 +274,6 @@ void Overlay::CleanupRenderTarget()
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-UINT Overlay::g_ResizeWidth = 0;
-UINT Overlay::g_ResizeHeight = 0;
-
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))

@@ -16,13 +16,14 @@ class Overlay {
 public:
 	static UINT g_ResizeWidth;
 	static UINT g_ResizeHeight;
+	static Screen screen;
 
 	bool Initialize(HINSTANCE hInstance);
 	void Render();
 	void Shutdown();
 	bool IsRunning();
 
-	Screen FindWindowLocation(LPCSTR windowName);
+	Screen FindWindowLocation(LPCWSTR windowName);
 
 private:
 	ID3D11Device* g_pd3dDevice;
